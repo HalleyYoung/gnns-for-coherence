@@ -24,8 +24,12 @@ for (fold, sub_dirs, files) in a:
 			ps = soup.findAll("p")
 			for val in ps:
 				text = val.text
+				# print("\n",text)
 				sent_text = nltk.sent_tokenize(text)
-				if len(sent_text) >= 4 and str(sent_text[-1])[-1] == "." and all([len(i) > 20 and "." not in i[:10] and "LEAD" not in i[:10] for i in sent_text]):
+				# and i[0] not in "1234567890["
+				if len(sent_text) >= 4 and str(sent_text[-1])[-1] == "." and all([len(i) > 30 and "." not in i[:2] and "LEAD" not in i[:6] and i[:2] != "A1" and i[:2] != "D1"and i[0].isupper() and i[-3:] != "St." and "#" not in i and "$" not in i and "..." not in i for i in sent_text]):
+					print(fold, file)
+					# , "\n",sent_text)
 					print("in " + str(text_count))
 					sents.append(sent_text)
 					sent_counts[text_count] = range(sent_count, sent_count + len(sent_text))
@@ -36,7 +40,7 @@ for (fold, sub_dirs, files) in a:
 						f.write("\n".join(concat(sents)).replace("''", '"'))
 						f.close()
 
-						pickle.dump(sent_counts, open("sent_counts.pcl", "w+"))
+						pickle.dump(sent_counts, open("sent_counts.pcl", "wb"))
 
 						exit(0)
 
