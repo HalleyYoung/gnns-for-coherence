@@ -1,6 +1,20 @@
 diff -U 9999999 file1.txt file2.txt > diff.txt
 
+#################### update 4/29 ####################
+Files used: 
+conceptnet_nytsent_script.py
+nyt.sent.new
+sent_counts.pcl
+conceptNet
 
+number of sentences in nyt.sent.new: 80000 
+
+Total time: 11713.588025093079
+len(passed), sum(passed.values()), passed 9429 18314
+
+passed is saved in file "words_not_in_cn".
+
+#################### update 4/29 ####################
 
 ConceptNet.pcl
 
@@ -16,12 +30,9 @@ ConceptNet.pcl
 ####################################################################################################
 
 
-conceptNet_edges_AHH.txt
+conceptNet_nyt_edges_swfree.txt
 
-p1	numEdges 216
-('Synonym', 'name', 'name')
-('IsA', 'match', 'duplicate')
-('Synonym', 'pottery', 'pottery')
+p1	numEdges 188
 .
 .
 .
