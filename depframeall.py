@@ -8,6 +8,7 @@ import random
 from nltk.stem import WordNetLemmatizer 
 
 
+#initializing nlp tools
 predictor = Predictor.from_path("https://s3-us-west-2.amazonaws.com/allennlp/models/srl-model-2018.05.25.tar.gz")
 lemmatizer = WordNetLemmatizer() 
 concept_edges_ = open("conceptNet_nyt_edges_swfree.txt").readlines()#pickle.load(open("concept_edges.pcl"))
@@ -20,7 +21,11 @@ for line in concept_edges_:
 			concept_edges[-1].append(eval(line.strip("\n")))
 		except:
 			pass
+nlp = spacy.load('en_core_web_lg')
 
+import neuralcoref
+coref = neuralcoref.NeuralCoref(nlp.vocab)
+nlp.add_pipe(coref, name='neuralcoref')
 
 edge_types = []
 graphs = []
@@ -33,7 +38,7 @@ def glove_sim(x,y):
 base_lemmas = {}
 
 
-
+#get conceptnet edges
 def getEdges(a, b, paragraph_ind):
 	global base_lemmas
 	if a in base_lemmas:
@@ -55,17 +60,14 @@ def getEdges(a, b, paragraph_ind):
 			current_edges.append((r, "backward"))
 	return current_edges
 
-nlp = spacy.load('en_core_web_lg')
 
-import neuralcoref
-coref = neuralcoref.NeuralCoref(nlp.vocab)
-nlp.add_pipe(coref, name='neuralcoref')
 
 with open("sent_counts.pcl", 'rb') as f:
 	par = pickle.load(f, encoding='latin1')
 
 text = open("nyt.sent.new").readlines()
 
+#get approximate gold-standard coherence score
 def getScore(perm):
 	score = 0
 	for i in range(len(perm)):
@@ -86,14 +88,15 @@ for (par_ind, paragraph) in par.items():
 	for (perm_ind, permutation) in enumerate(random.sample(a, 6)):
 		print("perm-ind " + str(perm_ind))
 		edges = set([])
-		sentences_permed = [paragraph_sents[i] for i in permutation]
+		sentences_permed = [paragraph_sents[i] for i in permutation] #some permutation of first 4 sentences
 		print(sentences_permed)
-		label = getScore(permutation)
+		label = getScore(permutation) #gold standard score
 		edges = set([])
 		nlp_perm = nlp(" ".join(sentences_permed))
-		toks = list(nlp_perm)
-		dep = nlp_perm.to_json()["tokens"]
+		toks = list(nlp_perm) #words
 
+		#get dependency parse edges
+		dep = nlp_perm.to_json()["tokens"]
 		nodes = {}
 		for (ind, val) in enumerate(dep):
 			word = nlp_perm.text[val["start"]:val["end"]]
@@ -102,6 +105,7 @@ for (par_ind, paragraph) in par.items():
 			word = nlp_perm.text[val["start"]:val["end"]]
 			edges.add((nodes[val["id"]], nodes[val["head"]], val["dep"]))
 
+		#get coref edges
 		if nlp_perm._.has_coref:
 			clusters = nlp_perm._.coref_clusters
 			for coref_group in clusters:
@@ -109,13 +113,13 @@ for (par_ind, paragraph) in par.items():
 				for (x,y) in itertools.product(coref_words, coref_words):
 					if x != y:
 						edges.add((x,y,"coref"))
-
+		#get consecutive word edges
 		for i in range(1, len(toks)):
 			edges.add((nodes[toks[i-1].i], nodes[toks[i].i], "consec_word"))
 			
 			#if str(toks[i]) == "." and i < len(toks) - 1:
 			#	edges.add((nodes[toks[i - 1].i], nodes[toks[i + 1].i], "consec_sent"))
-
+		#get consecutive sentence edges
 		sents = list(nlp_perm.sents)	
 		for i in range(len(sents) - 1):
 			toks_in_i = [nodes[k.i] for k in list(sents[i])]
@@ -124,8 +128,7 @@ for (par_ind, paragraph) in par.items():
 			for (i,j) in prod:
 				edges.add((i,j,"consec_sent"))
 
-
-		#pickle.load(open("predictor.pcl", "rb"))#
+		#get srl edges
 		for sentence in nlp_perm.sents:
 			a = predictor.predict(sentence=sentence.text)
 			verbs = a["verbs"]
@@ -149,7 +152,7 @@ for (par_ind, paragraph) in par.items():
 							for n2 in ns2:
 								edges.add((n1, n2, arg1 + "-" + arg2))
 
-
+		#get conceptnet/lemma edges
 		for (nodeA, nodeB) in list(itertools.product(nodes.values(), nodes.values())):
 			x_bas = nodeA.split("-")[0]
 			y_bas = nodeB.split("-")[0]
@@ -164,12 +167,13 @@ for (par_ind, paragraph) in par.items():
 					edges.add((nodeA,nodeB,"glove-sim"))
 					edges.add((nodeB,nodeA,"glove-sim"))
 
-			if x_bas == y_bas:
+			if lemmatizer.lemmatize(x_bas) == lemmatizer.lemmatize(y_bas):
 				edges.add((nodeA,nodeB,"same-word"))
 				edges.add((nodeB,nodeA,"same-word"))
 
 		nodes = list(nodes.values())
 
+		#get vector of nodes
 		nodes_mat = np.zeros((len(nodes), 200))
 		for (ind_node, node_) in enumerate(nodes):
 			try:
@@ -178,6 +182,7 @@ for (par_ind, paragraph) in par.items():
 				pass		
 		print("tot edges " + str(len(edges)) + " tot nodes " + str(len(nodes)))
 
+		#get vector of edges
 		for (x,y,label_) in edges:
 			if label_ not in edge_types:
 				edge_types.append(label_)
