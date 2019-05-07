@@ -7,6 +7,7 @@ matplotlib
 numpy
 """
 from torch.utils.data import Dataset, DataLoader
+import gensim.downloader as api
 
 import torch
 from torch import nn
@@ -36,6 +37,8 @@ INPUT_SIZE = 200      # rnn input size
 LR = 0.04           # learning rate
 
 # show data
+glove_model = api.load('glove-twitter-200')
+
 
 nlp = spacy.load('en_core_web_lg')
 with open("sent_counts.pcl", 'rb') as f:
