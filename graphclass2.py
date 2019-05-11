@@ -178,10 +178,10 @@ import random
 #testset = MiniGCDataset(80, 10, 20)
 num_rels = 0
 
-dataset = pickle.load(open("graphs2.pcl", "rb"))
+dataset = pickle.load(open("graphs2sent.pcl", "rb"))
 random.shuffle(dataset)
 trainset = []
-for (nodes, edges, label) in dataset[:1000]:
+for (nodes, edges, label) in dataset:
     graph = dgl.DGLGraph()
     graph.add_nodes(len(nodes))
     edges_ = range(len(edges))#random.sample(range(len(edges)), min(500, len(edges)))
@@ -190,17 +190,20 @@ for (nodes, edges, label) in dataset[:1000]:
     #    graph.edges[k].data["rel_type"] = torch.from_numpy(np.ones((1))*int(edges[k][2]))
     graph.ndata["x"] = torch.from_numpy(nodes).float()
     graph.edata["rel_type"] = torch.from_numpy(np.array([int(edges[i][2]) for i in edges_])).long()
-    trainset.append((graph, label))
-    if num_rels < max([edges[i][2] for i in edges_]):
-        num_rels = int(max([edges[i][2] for i in edges_]))
+    trainset.append((graph, float(label)))
+    max_rel = int(max([edges[i][2] for i in edges_]))
+    if num_rels <= max_rel: 
+        num_rels = max_rel + 1
 # Use PyTorch's DataLoader and the collate function
 # defined before.
-data_loader = DataLoader(trainset, batch_size=32, shuffle=True,
+batch_size = 32
+data_loader = DataLoader(trainset, batch_size=batch_size, shuffle=True,
                          collate_fn=collate)
 
 # Create model
 model = Regressor(200, 50)
-loss_func = nn.MSELoss()
+#model.load_state_dict(torch.load("gnn.pth"))
+loss_func = nn.BCELoss()
 optimizer = optim.Adam(model.parameters(), lr=0.001)
 model.train()
 
@@ -208,6 +211,8 @@ epoch_losses = []
 for epoch in range(80):
     epoch_loss = 0
     for iter, (bg, label) in enumerate(data_loader):
+        if label.shape[0] != batch_size:
+            continue
         print("in iter")
         prediction = model(bg)
         loss = loss_func(prediction, label)
@@ -216,6 +221,8 @@ for epoch in range(80):
         loss.backward()
         optimizer.step()
         epoch_loss += loss.detach().item()
+        if iter % 10 == 0:
+            torch.save(model.state_dict(), "gnn.pth")
     epoch_loss /= (iter + 1)
     print('Epoch {}, loss {:.4f}'.format(epoch, epoch_loss))
     epoch_losses.append(epoch_loss)
