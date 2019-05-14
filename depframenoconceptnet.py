@@ -6,6 +6,9 @@ import itertools
 import numpy as np
 import random
 from nltk.stem import WordNetLemmatizer 
+import gensim.downloader as api
+
+glove_model = api.load('glove-twitter-200')
 
 
 predictor = Predictor.from_path("https://s3-us-west-2.amazonaws.com/allennlp/models/srl-model-2018.05.25.tar.gz")
