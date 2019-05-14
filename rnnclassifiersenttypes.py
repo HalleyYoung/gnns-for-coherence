@@ -84,8 +84,6 @@ class LSTMClassifier(nn.Module):
         return y
 
 rnn = LSTMClassifier()
-rnn.load_state_dict(torch.load("rnnfake_sents6.pth"))
-#data = {}
 
 first_sents = pickle.load(open("first_sent.pcl", "rb"))
 orig_sents = pickle.load(open("orig_sents.pcl", "rb"))
